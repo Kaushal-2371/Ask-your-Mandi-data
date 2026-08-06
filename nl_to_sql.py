@@ -18,7 +18,7 @@ def get_gemini_key():
     return os.environ.get("GEMINI_API_KEY", "PASTE_YOUR_KEY_HERE")
 
 GEMINI_API_KEY = get_gemini_key()
-MODEL_ID = "gemini-2.5-flash"  # higher free-tier quota (1,500 req/day) vs gemini-3-flash-preview (20/day)
+MODEL_ID = "gemini-2.0-flash"  # stable model, available to new accounts, 200 req/day free tier
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
