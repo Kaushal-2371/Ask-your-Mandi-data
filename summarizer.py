@@ -9,7 +9,16 @@ import pandas as pd
 from google import genai
 
 # ---------- CONFIG ----------
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "PASTE_YOUR_KEY_HERE")
+def get_gemini_key():
+    try:
+        import streamlit as st
+        if "GEMINI_API_KEY" in st.secrets:
+            return st.secrets["GEMINI_API_KEY"]
+    except Exception:
+        pass
+    return os.environ.get("GEMINI_API_KEY", "PASTE_YOUR_KEY_HERE")
+
+GEMINI_API_KEY = get_gemini_key()
 MODEL_ID = "gemini-3-flash-preview"
 
 client = genai.Client(api_key=GEMINI_API_KEY)
