@@ -7,7 +7,9 @@ Safely executes a SQL string against BigQuery.
 """
 
 import re
+import os
 from google.cloud import bigquery
+from google.oauth2 import service_account
 
 PROJECT_ID = "gov-marketdata"
 LOCATION = "asia-south1"
@@ -21,13 +23,29 @@ FORBIDDEN_KEYWORDS = [
 _client = None
 
 
-LOCATION = "asia-south1"  # must match the region your dataset was created in
-
-
 def get_client():
+    """
+    Creates a BigQuery client.
+    - Locally: uses GOOGLE_APPLICATION_CREDENTIALS env var (your bigquery-key.json)
+    - On Streamlit Cloud: uses credentials from st.secrets["gcp_service_account"]
+    """
     global _client
-    if _client is None:
-        _client = bigquery.Client(project=PROJECT_ID, location=LOCATION)
+    if _client is not None:
+        return _client
+
+    # Try Streamlit secrets first (works when deployed on Streamlit Cloud)
+    try:
+        import streamlit as st
+        if "gcp_service_account" in st.secrets:
+            creds_dict = dict(st.secrets["gcp_service_account"])
+            credentials = service_account.Credentials.from_service_account_info(creds_dict)
+            _client = bigquery.Client(project=PROJECT_ID, location=LOCATION, credentials=credentials)
+            return _client
+    except Exception:
+        pass  # not running under Streamlit, or no secrets configured -> fall back below
+
+    # Fallback: local development using GOOGLE_APPLICATION_CREDENTIALS env var
+    _client = bigquery.Client(project=PROJECT_ID, location=LOCATION)
     return _client
 
 
