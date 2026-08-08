@@ -72,21 +72,22 @@ def is_safe_query(sql: str) -> bool:
 def run_query(sql: str):
     """
     Executes SQL safely.
-    Returns: (success: bool, result_df_or_error_message)
+    Returns: (success: bool, result_or_message, status: str)
+    status is one of: "ok", "invalid_question", "blocked", "sql_error"
     """
     if sql.strip() == "INVALID_QUESTION":
-        return False, "That question doesn't seem related to the mandi price data. Try asking about commodities, prices, markets, or states."
+        return False, "That question doesn't seem related to the mandi price data. Try asking about commodities, prices, markets, or states.", "invalid_question"
 
     if not is_safe_query(sql):
-        return False, "Blocked: only single SELECT queries are allowed."
+        return False, "Blocked: only single SELECT queries are allowed.", "blocked"
 
     try:
         client = get_client()
         query_job = client.query(sql)
         df = query_job.result().to_dataframe()
-        return True, df
+        return True, df, "ok"
     except Exception as e:
-        return False, f"Query failed: {str(e)}"
+        return False, f"Query failed: {str(e)}", "sql_error"
 
 
 if __name__ == "__main__":
@@ -104,11 +105,11 @@ if __name__ == "__main__":
     bad_sql = "DROP TABLE `gov-marketdata.Market_Price.prices`"
 
     print("Testing safe SELECT query...")
-    ok, result = run_query(good_sql)
-    print("Success:", ok)
+    ok, result, status = run_query(good_sql)
+    print("Success:", ok, "| Status:", status)
     print(result)
 
     print("\nTesting blocked DROP query...")
-    ok, result = run_query(bad_sql)
-    print("Success:", ok)
+    ok, result, status = run_query(bad_sql)
+    print("Success:", ok, "| Status:", status)
     print(result)
