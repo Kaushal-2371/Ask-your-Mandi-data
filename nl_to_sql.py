@@ -73,6 +73,41 @@ def question_to_sql(question: str) -> str:
     return sql
 
 
+def fix_sql(question: str, failed_sql: str, error_message: str) -> str:
+    """
+    Self-healing retry: shows the model its own broken SQL plus the exact
+    database error, and asks it to produce a corrected query.
+    """
+    fix_prompt = f"""{SYSTEM_PROMPT}
+
+The following SQL query was generated for this question but failed to run:
+
+Question: {question}
+
+SQL that failed:
+{failed_sql}
+
+Database error:
+{error_message}
+
+Fix the query so it runs correctly against the schema above. Return ONLY the
+corrected SQL query, no explanation, no markdown, no backticks.
+
+Corrected SQL:"""
+
+    response = client.chat.completions.create(
+        model=MODEL_ID,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": fix_prompt},
+        ],
+        temperature=0,
+    )
+    sql = response.choices[0].message.content.strip()
+    sql = sql.replace("```sql", "").replace("```", "").strip()
+    return sql
+
+
 if __name__ == "__main__":
     test_questions = [
         "What is the average modal price of onion in Maharashtra?",
