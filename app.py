@@ -5,7 +5,7 @@ Wires together: nl_to_sql -> query_executor -> summarizer -> visualizer
 """
 
 import streamlit as st
-from nl_to_sql import question_to_sql
+from nl_to_sql import question_to_sql, fix_sql
 from query_executor import run_query
 from summarizer import summarize
 from visualizer import auto_chart
@@ -24,9 +24,18 @@ if "history" not in st.session_state:
 def handle_question(question: str):
     with st.spinner("Thinking..."):
         sql = question_to_sql(question)
-        success, result = run_query(sql)
+        success, result, status = run_query(sql)
 
-        entry = {"question": question, "sql": sql}
+        retried = False
+        # Self-healing: only retry on genuine SQL errors, not blocked/invalid-question cases
+        if not success and status == "sql_error":
+            retried = True
+            fixed_sql = fix_sql(question, sql, result)
+            success2, result2, status2 = run_query(fixed_sql)
+            if success2:
+                sql, success, result, status = fixed_sql, success2, result2, status2
+
+        entry = {"question": question, "sql": sql, "retried": retried and success}
 
         if not success:
             entry["error"] = result
@@ -68,6 +77,8 @@ for entry in reversed(st.session_state.history):
     if "error" in entry:
         st.warning(entry["error"])
     else:
+        if entry.get("retried"):
+            st.caption("🔧 Auto-corrected after an initial query error")
         with st.expander("Show generated SQL"):
             st.code(entry["sql"], language="sql")
 
