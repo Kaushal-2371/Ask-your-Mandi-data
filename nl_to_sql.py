@@ -1,29 +1,28 @@
 """
 nl_to_sql.py
 Converts a plain-English question into a BigQuery SQL query
-using Gemini 3 Flash (current free-tier model as of 2026).
+using Groq's free API (Llama 3.3 70B).
 """
 
 import os
-from google import genai
+from groq import Groq
 
 # ---------- CONFIG ----------
-def get_gemini_key():
+def get_groq_key():
     try:
         import streamlit as st
-        if "GEMINI_API_KEY" in st.secrets:
-            return st.secrets["GEMINI_API_KEY"]
+        if "GROQ_API_KEY" in st.secrets:
+            return st.secrets["GROQ_API_KEY"]
     except Exception:
         pass
-    return os.environ.get("GEMINI_API_KEY", "PASTE_YOUR_KEY_HERE")
+    return os.environ.get("GROQ_API_KEY", "PASTE_YOUR_KEY_HERE")
 
-GEMINI_API_KEY = get_gemini_key()
-MODEL_ID = "gemini-2.0-flash"  # stable model, available to new accounts, 200 req/day free tier
+GROQ_API_KEY = get_groq_key()
+MODEL_ID = "llama-3.3-70b-versatile"  # free tier, no billing required
 
-client = genai.Client(api_key=GEMINI_API_KEY)
+client = Groq(api_key=GROQ_API_KEY)
 
 # ---------- SCHEMA CONTEXT ----------
-# Give the model your exact table/column names so it doesn't hallucinate.
 SCHEMA = """
 You are querying a Google BigQuery dataset called `gov-marketdata.Market_Price`
 with these tables:
@@ -58,11 +57,15 @@ Rules:
 
 
 def question_to_sql(question: str) -> str:
-    response = client.models.generate_content(
+    response = client.chat.completions.create(
         model=MODEL_ID,
-        contents=f"{SYSTEM_PROMPT}\n\nQuestion: {question}\n\nSQL:",
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"Question: {question}\n\nSQL:"},
+        ],
+        temperature=0,
     )
-    sql = response.text.strip()
+    sql = response.choices[0].message.content.strip()
 
     # Strip accidental markdown fences if the model adds them anyway
     sql = sql.replace("```sql", "").replace("```", "").strip()
@@ -71,11 +74,10 @@ def question_to_sql(question: str) -> str:
 
 
 if __name__ == "__main__":
-    # Quick manual test
     test_questions = [
         "What is the average modal price of onion in Maharashtra?",
         "Show top 5 commodities by max price in Gujarat",
-        "What is the capital of France?",  # should return INVALID_QUESTION
+        "What is the capital of France?",
     ]
 
     for q in test_questions:
