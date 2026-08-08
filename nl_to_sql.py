@@ -52,7 +52,14 @@ Rules:
    commodity_name can appear multiple times with different commodity_id values. When a question
    asks for "top commodities" or similar by name, GROUP BY commodity_name (not commodity_id) and
    aggregate the price (e.g. MAX or AVG) so each commodity name appears only once in the result.
-6. If the question is unclear or unrelated to this data, return exactly: INVALID_QUESTION
+6. In any query that uses GROUP BY, every column in ORDER BY must either appear in the
+   GROUP BY clause or be wrapped in an aggregate function (SUM, AVG, MAX, MIN, COUNT).
+   Never ORDER BY a raw, non-aggregated column when GROUP BY is present.
+7. For questions that require a multi-step ranking (e.g. "find the state with the most X,
+   then find the Y within that state"), use a WITH clause (CTE) to compute the first ranking,
+   then join or filter against it in a second step. Do not try to do both steps in one
+   flat GROUP BY query.
+8. If the question is unclear or unrelated to this data, return exactly: INVALID_QUESTION
 """
 
 
@@ -90,8 +97,10 @@ SQL that failed:
 Database error:
 {error_message}
 
-Fix the query so it runs correctly against the schema above. Return ONLY the
-corrected SQL query, no explanation, no markdown, no backticks.
+Do not simply repeat the same query structure that caused this error. If the error is about
+ORDER BY referencing a non-aggregated column, restructure the query using a WITH clause (CTE)
+to compute the ranking/aggregation first, then select from it. Return ONLY the corrected SQL
+query, no explanation, no markdown, no backticks.
 
 Corrected SQL:"""
 
@@ -101,7 +110,7 @@ Corrected SQL:"""
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": fix_prompt},
         ],
-        temperature=0,
+        temperature=0.4,
     )
     sql = response.choices[0].message.content.strip()
     sql = sql.replace("```sql", "").replace("```", "").strip()
