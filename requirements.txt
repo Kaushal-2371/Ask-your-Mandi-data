@@ -1,6 +1,6 @@
 streamlit
 google-cloud-bigquery
-google-genai
+groq
 pandas
 db-dtypes
 plotly
