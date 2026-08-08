@@ -2,8 +2,9 @@
 
 A natural-language analytics tool for Indian commodity market (mandi) prices. Ask a question in plain English, get back a SQL-backed answer with an auto-generated chart — no SQL knowledge required.
 
-**Live app:** [add your Streamlit Cloud link here]
-**GitHub:** [add your repo link here]
+**Live app:** https://ask-your-mandi-data-936fcbkgm6kfkucplavezc.streamlit.app/#ask-your-mandi-data
+
+**GitHub:** https://github.com/Kaushal-2371/Ask-your-Mandi-data
 
 ---
 
