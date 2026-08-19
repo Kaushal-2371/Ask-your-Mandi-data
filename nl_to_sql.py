@@ -59,7 +59,13 @@ Rules:
    then find the Y within that state"), use a WITH clause (CTE) to compute the first ranking,
    then join or filter against it in a second step. Do not try to do both steps in one
    flat GROUP BY query.
-8. If the question is unclear or unrelated to this data, return exactly: INVALID_QUESTION
+8. BigQuery string comparisons are case-sensitive, but the actual data's capitalization may not
+   match how the user phrases their question (e.g. data may store "Onion" but the user asks about
+   "onion"). For ANY WHERE clause comparing text columns (commodity_name, state_name,
+   district_name, market_name, variety, grade), always use case-insensitive matching, e.g.
+   UPPER(commodity_name) = UPPER('Onion') or LOWER(commodity_name) = LOWER('Onion'). Never use a
+   plain case-sensitive equality check on a text column.
+9. If the question is unclear or unrelated to this data, return exactly: INVALID_QUESTION
 """
 
 
