@@ -1,7 +1,7 @@
 """
 nl_to_sql.py
 Converts a plain-English question into a BigQuery SQL query
-using Groq's free API (Llama 3.3 70B).
+using Groq's free API.
 """
 
 import os
@@ -18,7 +18,7 @@ def get_groq_key():
     return os.environ.get("GROQ_API_KEY", "PASTE_YOUR_KEY_HERE")
 
 GROQ_API_KEY = get_groq_key()
-MODEL_ID = "llama-3.3-70b-versatile"  # free tier, no billing required
+MODEL_ID = "openai/gpt-oss-120b"  # Groq deprecated llama-3.3-70b-versatile June 2026
 
 client = Groq(api_key=GROQ_API_KEY)
 
@@ -73,10 +73,7 @@ def question_to_sql(question: str) -> str:
         temperature=0,
     )
     sql = response.choices[0].message.content.strip()
-
-    # Strip accidental markdown fences if the model adds them anyway
     sql = sql.replace("```sql", "").replace("```", "").strip()
-
     return sql
 
 
