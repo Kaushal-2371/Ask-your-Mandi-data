@@ -1,7 +1,7 @@
 """
 summarizer.py
 Takes a question + its SQL result table, and returns a short,
-plain-English summary using Groq's free API (Llama 3.3 70B).
+plain-English summary using Groq's free API.
 """
 
 import os
@@ -19,7 +19,7 @@ def get_groq_key():
     return os.environ.get("GROQ_API_KEY", "PASTE_YOUR_KEY_HERE")
 
 GROQ_API_KEY = get_groq_key()
-MODEL_ID = "llama-3.3-70b-versatile"
+MODEL_ID = "openai/gpt-oss-120b"  # Groq deprecated llama-3.3-70b-versatile June 2026
 
 client = Groq(api_key=GROQ_API_KEY)
 
