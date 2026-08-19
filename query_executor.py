@@ -1,7 +1,8 @@
 """
 query_executor.py
 Safely executes a SQL string against BigQuery.
-- Blocks any write/DDL statement (only SELECT allowed)
+- Allows SELECT and WITH (CTE) queries only
+- Blocks any write/DDL statement
 - Returns results as a pandas DataFrame
 - Catches and reports errors cleanly (so the caller can retry / show a message)
 """
@@ -33,7 +34,6 @@ def get_client():
     if _client is not None:
         return _client
 
-    # Try Streamlit secrets first (works when deployed on Streamlit Cloud)
     try:
         import streamlit as st
         if "gcp_service_account" in st.secrets:
@@ -42,21 +42,23 @@ def get_client():
             _client = bigquery.Client(project=PROJECT_ID, location=LOCATION, credentials=credentials)
             return _client
     except Exception:
-        pass  # not running under Streamlit, or no secrets configured -> fall back below
+        pass
 
-    # Fallback: local development using GOOGLE_APPLICATION_CREDENTIALS env var
     _client = bigquery.Client(project=PROJECT_ID, location=LOCATION)
     return _client
 
 
 def is_safe_query(sql: str) -> bool:
-    """Only allow single SELECT statements, no write/DDL keywords."""
+    """
+    Only allow single SELECT or WITH...SELECT (CTE) statements, no write/DDL keywords.
+    """
     stripped = sql.strip().rstrip(";")
+    upper_sql = stripped.upper()
 
-    if not stripped.upper().startswith("SELECT"):
+    # Allow queries that start with SELECT, or WITH (CTEs used for multi-step ranking)
+    if not (upper_sql.startswith("SELECT") or upper_sql.startswith("WITH")):
         return False
 
-    upper_sql = stripped.upper()
     for keyword in FORBIDDEN_KEYWORDS:
         # word-boundary match so e.g. "created_date" doesn't false-trigger on CREATE
         if re.search(rf"\b{keyword}\b", upper_sql):
@@ -79,7 +81,7 @@ def run_query(sql: str):
         return False, "That question doesn't seem related to the mandi price data. Try asking about commodities, prices, markets, or states.", "invalid_question"
 
     if not is_safe_query(sql):
-        return False, "Blocked: only single SELECT queries are allowed.", "blocked"
+        return False, "Blocked: only single SELECT/WITH (read-only) queries are allowed.", "blocked"
 
     try:
         client = get_client()
@@ -91,7 +93,6 @@ def run_query(sql: str):
 
 
 if __name__ == "__main__":
-    # Quick manual tests
     good_sql = """
     SELECT s.state_name, AVG(p.modal_price) AS avg_price
     FROM `gov-marketdata.Market_Price.prices` p
@@ -102,10 +103,29 @@ if __name__ == "__main__":
     ORDER BY avg_price DESC
     LIMIT 5
     """
+    cte_sql = """
+    WITH ranked AS (
+        SELECT s.state_name, COUNT(DISTINCT c.commodity_id) AS variety_count
+        FROM `gov-marketdata.Market_Price.prices` p
+        JOIN `gov-marketdata.Market_Price.commodities` c ON p.commodity_id = c.commodity_id
+        JOIN `gov-marketdata.Market_Price.markets` m ON p.market_id = m.market_id
+        JOIN `gov-marketdata.Market_Price.districts` d ON m.district_id = d.district_id
+        JOIN `gov-marketdata.Market_Price.states` s ON d.state_id = s.state_id
+        GROUP BY s.state_name
+        ORDER BY variety_count DESC
+        LIMIT 1
+    )
+    SELECT * FROM ranked
+    """
     bad_sql = "DROP TABLE `gov-marketdata.Market_Price.prices`"
 
     print("Testing safe SELECT query...")
     ok, result, status = run_query(good_sql)
+    print("Success:", ok, "| Status:", status)
+    print(result)
+
+    print("\nTesting safe WITH/CTE query...")
+    ok, result, status = run_query(cte_sql)
     print("Success:", ok, "| Status:", status)
     print(result)
 
